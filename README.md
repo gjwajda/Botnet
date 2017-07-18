@@ -16,4 +16,4 @@ Keylogger - 'CMD' = "KEYL,'TIME'" where 'TIME' is how long you wish to keylog in
 
 
 
-FOR LEARNING PURPOSES ONLY. NOT FOR USE.
+FOR LEARNING PURPOSES ONLY. NOT FOR MALICIOUS USE.
